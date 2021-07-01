@@ -4,11 +4,13 @@ import {Weather} from '../models/Weather';
 import {environment} from '../../../../environments/environment';
 import {HttpClient, HttpParams} from '@angular/common/http';
 import {map, switchMap} from 'rxjs/operators';
+import {ConverterService} from '@spartacus/core';
+import {WEATHER_NORMALIZER, WEATHER_SERIALIZER} from '../converters/weather.converter';
 
 @Injectable({providedIn: 'root'})
 export class WeatherAdapter {
 
-  constructor(private httpClient: HttpClient) {
+  constructor(private httpClient: HttpClient, private converterService: ConverterService) {
   }
 
   getGeolocationPosition(): Observable<Position> {
@@ -26,24 +28,12 @@ export class WeatherAdapter {
   }
 
   fetchWeatherInfo(position: Position): Observable<Weather> {
-    const {latitude, longitude} = position.coords;
-    const data = {
-      lat: String(latitude),
-      lon: String(longitude),
-      units: environment.weatherAPI.unit,
-      appid: environment.weatherAPI.apiKey
-    };
+    const data = this.converterService.convert(position, WEATHER_SERIALIZER);
 
     const params = new HttpParams({fromObject: data});
 
     return this.httpClient.get(`${environment.weatherAPI.url}/weather/`, {params})
-      .pipe(
-        map((response: any) => ({
-          city: response.name,
-          humidity: response.main.humidity,
-          temperature: response.main.temp,
-        }))
-      );
+      .pipe(this.converterService.pipeable(WEATHER_NORMALIZER));
   }
 
   getWeather(): Observable<Weather> {
